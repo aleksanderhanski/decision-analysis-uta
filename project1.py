@@ -51,7 +51,7 @@ for f in os.listdir(destination):
 # %%
 df = pd.read_csv("./dataset/Cars Datasets 2025.csv", encoding="cp1252")
 
-df.head
+df.head()
 
 # %% [markdown]
 # # Dataset preprocessing:
@@ -138,7 +138,7 @@ df["HorsePower"] = (df["HorsePower"]
     .str.replace(",", "")
     .str.strip()
     .str.split(" - ")
-    .apply(lambda x: (int(x[0]) + int(x[1])) / 2 if len(x) == 2 else int(x[0]))
+    .apply(lambda x: round((int(x[0]) + int(x[1])) / 2) if len(x) == 2 else int(x[0]))
 )
 print(df["HorsePower"])
 
@@ -153,17 +153,14 @@ plt.ylabel("Count")
 plt.show()
 
 # %%
-levels = np.linspace(df["HorsePower"].min(), df["HorsePower"].max(), 6)
-levels
+levels = np.round(np.linspace(df["HorsePower"].min(), df["HorsePower"].max(), 6), 2)
 
 CRITERIA["HorsePower"] = [f"≥{lvl}" for lvl in levels[:-1]]
-print(CRITERIA)
 
 df["HorsePower"] = df["HorsePower"].apply(lambda x: snap_to_bin_label(x, levels))
-print(df["HorsePower"].unique())
 
-# %% [markdown]
-# need to change it so that we have more bins within guys not being outliers
+print(CRITERIA)
+print(df["HorsePower"].unique())
 
 # %% [markdown]
 # ## Price:
@@ -227,16 +224,77 @@ chevy_cars = df[df["Company Names"] == "Chevrolet"]["Cars Names"].tolist()
 jeep_cars = df[df["Company Names"] == "Jeep"]["Cars Names"].tolist()
 
 PREFERENCES = [
-    # Cycle (Inconsistency)
-    ("PILOT", "NV1500"),
-    ("NV1500", "Carnival EX"),
-    ("Carnival EX", "PILOT"),
-    
+    # Cycle
+    ("PILOT", "NV1500"),         # PILOT faster + more HP
+    ("NV1500", "Transporter"),   # NV1500 more seats + more HP
+    ("Transporter", "PILOT"),    # Transporter more seats
+
     # Additional preferences
-    ("Yukon", "NV1500"),
-    ("Suburban", "Wagoneer")
+    ("Yukon", "Carnival EX"),    # Yukon more powerful
+    ("Wagoneer", "Expedition"),  # Wagoneer faster, otherwise equal
 ]
 
+
+# %% [markdown]
+# # Dataset description:
+
+# %% [markdown]
+# 1. domain of problem is about choosing the best car for Michał.
+#
+# 2. source of data is kaggle dataset: https://www.kaggle.com/datasets/abdulmalik1518/cars-datasets-2025
+#
+# 3. Michał wants the car that is cheap (as he has not found internship yet), that is fast, but also important factor is that the car shall have many seats - Michał wants to do a walcome party in his car, and be able to invite as many people as possible.
+#
+# 4. Michał considered 31 alternatives - only cars with number of seats equal to 8 or more. But the Michał shrank his dataset to 8 random options from this so that he could use not only uta but also ahp on whole dataset and compare results. This is much less alternatives than in original dataset.
+#
+# 5. One alternative from original dataset is FERRARI SF90 STRADALE:
+#
+# - Engines: V8   
+# - CC/Battery Capacity: 3990 cc 
+# - HorsePower: 963 hp
+# - Total Speed: 340 km/h 
+# - Performance(0 - 100 )KM/H: 2.5 sec 
+# - Cars Prices: $1,100,000 
+# - Fuel Types: plug in hyrbrid
+# - Seats: 2
+# - Torque: 800 Nm
+#
+#   But Michał does not include this alternative, it has only 2 seats - it might be an acceptable choice for a date, but not for a legendary party that Michał wants to organize.
+#
+# 6. Michał considers four criteria: 
+# - seats
+# - car price
+# - total speed
+# - HorsePower
+#
+#   Michał also has some self-contradictory preferences regarding his favourite car models.
+#
+#   In the original data set there were more criteria: engines, CC/battery capacity, performance (0 - 100)km/h, fual types, torque, but Michał does not consider those criteria. Four criteria that Michał chose are fully sufficient.
+#
+# 7. 
+# - seats is discrete gain type criterium
+# - total speed is gain type, it was continuous, we divided it into 5 categories: ['≥155.0', '≥168.0', '≥181.0', '≥194.0', '≥207.0']
+#   car price and HorsePower also were continuous, we divided them into categories similar way. 
+#
+#   For price, which was cost type, we inverted ordering, so that the cheapest correspond to best.
+#   
+#   While transforming continuous categories into discrete ones, we did not take outliers, as we saw that in each case there were not that many (Ferrari would be outlier compared to cars Michał chose from, but we did not consider it). In each case we did divide distirbution linearly into categories.
+#
+# 8. All 4 criteria that were considered are of equal importance. Other criteria are irrelevant.
+#
+# 10. In my opinion the best alternative would be Ferrari, but Michał wants to consider alternative that has 8 seats or more, if that constraint is fulfilled, then he wants to consider number of seats, horse power, total speed, and price as similarly important.
+#
+# 11. There is no alternative that seems to be much better than the others. One alternative that can be considered is Honda Pilot - it costs 40,000$, so is realtively cheap, total speed of 209 km/h, what is better score than average among considered alternatives, and its horse power is not worse than many other alternatives. So it is good not because of one outsanding criterium, but because of good overall value of criteria.
+#
+# 12. One of alternatives that seems not that strong is Kia Carnival EX. It is quite cheap, and decently fast, but has quite small horse power. It is not a very bad car, and there is no one major disadvantage.
+#
+# 13. 
+#
+# - Honda PILOT vs Nissan NV1500: PILOT is much faster (209 vs 160 km/h) and has more HP (285 vs 261), but NV1500 can fit 12 people compared to just 8.
+#
+# - Nissan NV1500 vs VW Transporter: NV1500 has more seats (12 vs 9) and more HP (261 vs 153), but Transporter is a bit faster (180 vs 160 km/h).
+#
+# - Ferrari vs Nissan NV1500: Ferrari can fit only 2 people compared to 12.
 
 # %% [markdown]
 # # Checking feasibility (UTA 2.1):
@@ -257,8 +315,8 @@ print(PREFERENCES)
 selected_criteria = list(CRITERIA.keys())
 
 AHP_ALT_NAMES = [
-    "PILOT", "NV1500", "Transporter", "Carnival SX Prestige", 
-    "Expedition", "Yukon Denali", "Suburban", "Wagoneer"
+    "PILOT", "NV1500", "Transporter", "Carnival EX", 
+    "Expedition", "Yukon", "Suburban", "Wagoneer"
 ]
 
 # Filter the dataframe so UTA and AHP use the same dataset
@@ -451,11 +509,44 @@ else:
 
 # %% [markdown]
 # The system is infeasible because preferences P1–P3 form a cycle
-# (honda ≻ nissan ≻ kia ≻ honda).  The MIS/MCS analysis above identifies
-# which preferences to keep.  We take the **largest MCS** (removing the
-# fewest preferences) and proceed with UTA 2.2 — maximising the distance
-# between the utility of reference alternatives that are in a preference
-# relationship (the most discriminant value function).
+# (PILOT ≻ NV1500 ≻ Transporter ≻ PILOT). Each pair is individually feasible
+# (each alternative is better on some criteria), but together no additive
+# value function can satisfy all three at once — this is the only MIS.
+#
+# The three MCS are obtained by dropping one preference from the cycle:
+# - {P1, P2, P4, P5} — drops P3 (Transporter ≻ PILOT)
+# - {P1, P3, P4, P5} — drops P2 (NV1500 ≻ Transporter)
+# - {P2, P3, P4, P5} — drops P1 (PILOT ≻ NV1500)
+#
+# P4 and P5 appear in every MCS (the core), so they are unconditionally safe.
+# We proceed with the first MCS {P1, P2, P4, P5}.
+
+# %%
+status_21, result_21 = build_and_solve_inconsistency(largest_mcs, verbose=True)
+
+n_criteria = len(CRITERIA)
+fig, axes = plt.subplots(1, n_criteria, figsize=(4 * n_criteria, 4))
+
+for ax, (crit, levels) in zip(axes, CRITERIA.items()):
+    values = [result_21[crit][lvl] for lvl in levels]
+    ax.plot(range(len(levels)), values, marker="o")
+    ax.set_xticks(range(len(levels)))
+    ax.set_xticklabels(levels, rotation=45, ha="right")
+    ax.set_ylim(0, 1.0)
+    ax.set_title(crit)
+    ax.set_xlabel("Level")
+    ax.set_ylabel("Marginal utility")
+    ax.grid(True)
+
+plt.suptitle("Marginal Value Functions (UTA 2.1 — feasibility)")
+plt.tight_layout()
+plt.show()
+
+# %% [markdown]
+# The 2.1 solution is any feasible point — the solver minimised the sum of
+# criterion weights, so marginal values are compressed. HorsePower gets the
+# largest weight (0.50) and the steepest curve. In UTA 2.2 we maximise
+# the utility gaps to get a more discriminant value function.
 
 # %% [markdown]
 # # Solving problem with objective function (UTA 2.2):
@@ -558,25 +649,71 @@ status, result = build_and_solve_objective(largest_mcs, verbose=True)
 print(result)
 
 # %%
-top5 = sorted(result["_utilities"], key=lambda x: result["_utilities"][x], reverse=True)[:5]
-for rank, car in enumerate(top5, 1):
+cars_sorted = sorted(result["_utilities"], key=lambda x: result["_utilities"][x], reverse=True)
+for rank, car in enumerate(cars_sorted, 1):
     company = df[df["Cars Names"] == car]["Company Names"].values[0]
     print(f"{rank}. {car} by {company} (utility: {result['_utilities'][car]:.4f})")
 
+# %% [markdown]
+# We can see that we got a draw - two cars were rated equally and then another two, then there is a big gap, so we got 3 groups of cars with similar/equal rating, what is interesting.
+
 # %%
 # variables and their values
-for crit, levels in CRITERIA.items():
-    for lvl in levels:
-        print(f"u_{crit}_{lvl} = {result[crit][lvl]:.4f}")
+print("=" * 60)
+print("OBJECTIVE (maximize):")
+obj_terms = " + ".join(
+    f"[U({PREFERENCES[i][0]}) - U({PREFERENCES[i][1]})]" for i in largest_mcs
+)
+print(f"  max {{ {obj_terms} }}")
+print(f"  value = {result['_objective']:.4f}")
 
-print("\nPreference constaints:")
+print("\nNORMALIZATION:")
+low_terms = " + ".join(f"u_{c}({lvls[0]})" for c, lvls in CRITERIA.items())
+print(f"  {low_terms} = 0  (lowest level = 0 per criterion)")
+top_terms = " + ".join(f"u_{c}({lvls[-1]})" for c, lvls in CRITERIA.items())
+print(f"  {top_terms} = 1  (sum of top-level values)")
+
+print("\nMONOTONICITY:")
+for crit, levels in CRITERIA.items():
+    for i in range(len(levels) - 1):
+        v_lo = result[crit][levels[i]]
+        v_hi = result[crit][levels[i + 1]]
+        print(f"  u_{crit}({levels[i]}) <= u_{crit}({levels[i+1]})  →  {v_lo:.4f} <= {v_hi:.4f}")
+
+print("\nWEIGHT BOUNDS:")
+for crit, levels in CRITERIA.items():
+    w = result[crit][levels[-1]]
+    print(f"  {MIN_WEIGHT} <= u_{crit}({levels[-1]}) <= {MAX_WEIGHT}  →  w = {w:.4f}")
+
+print("\nNON-FLATNESS:")
+for crit, levels in CRITERIA.items():
+    top = result[crit][levels[-1]]
+    print(f"  u_{crit}({levels[-1]}) >= 0.15  →  {top:.4f}")
+    if len(levels) >= 3:
+        mid = levels[len(levels) // 2]
+        lo_gap = result[crit][mid] - result[crit][levels[0]]
+        hi_gap = result[crit][levels[-1]] - result[crit][mid]
+        print(f"  u_{crit}({mid}) - u_{crit}({levels[0]}) >= 0.04  →  {lo_gap:.4f}")
+        print(f"  u_{crit}({levels[-1]}) - u_{crit}({mid}) >= 0.04  →  {hi_gap:.4f}")
+
+print("\nPREFERENCE CONSTRAINTS:")
 for idx in largest_mcs:
     a, b = PREFERENCES[idx]
     ua = result["_utilities"][a]
     ub = result["_utilities"][b]
-    print(f"U({a}) >= U({b}) + {EPSILON}  →  {ua:.4f} >= {ub:.4f} + {EPSILON}")
+    satisfied = "✓" if ua >= ub + EPSILON - 1e-6 else "✗"
+    print(f"  U({a}) >= U({b}) + {EPSILON}  →  {ua:.4f} >= {ub:.4f} + {EPSILON}  {satisfied}")
 
-print("\nCriterion weights:")
+print("\nVARIABLE VALUES:")
+for crit, levels in CRITERIA.items():
+    for lvl in levels:
+        print(f"  u_{crit}({lvl}) = {result[crit][lvl]:.4f}")
+
+print("\nALTERNATIVE UTILITIES:")
+for alt in sorted(result["_utilities"], key=lambda x: result["_utilities"][x], reverse=True):
+    print(f"  U({alt}) = {result['_utilities'][alt]:.4f}")
+
+print("\nCRITERION WEIGHTS (top-level marginal values):")
 for crit, levels in CRITERIA.items():
     weight = result[crit][levels[-1]]
     print(f"  {crit}: {weight:.4f}")
@@ -602,16 +739,18 @@ plt.tight_layout()
 plt.show()
 
 # %% [markdown]
+# The most important atribute according to UTA is horse power. Interestingly, car is rated much higher when its horse power falls into category '334 or more' than when it does not. The car that has total speed of 170 km/h will be rated almost equally as the same car with total speed on 200 km/h. The cars with price lower than 41 160$ are rated higher, if car is more expensive than this threshold, then it does not matter that much what is it's price. 
+
+# %% [markdown]
 # # AHP (Analytic Hierarchy Process)
 #
 # We build a 4-level hierarchy:
-# - **Goal**: Best Family / Commercial Vehicle
+# - **Goal**: Best Michał's Party Vehicle
 # - **Categories**: Performance (Total Speed, HorsePower) and Economy (Seats, Cars Prices)
 # - **Criteria**: the 4 criteria under their respective categories
 # - **Alternatives**: 8 selected cars
 #
-# All pairwise comparisons use the Saaty 1–9 scale and are provided by
-# the decision maker (not derived from data).
+# All pairwise comparisons use the Saaty 1–9 scale and are provided by the DM.
 
 # %%
 from scipy.stats import kendalltau
@@ -624,14 +763,14 @@ from scipy.stats import kendalltau
 
 # %%
 AHP_ALT_NAMES = [
-    "PILOT",               # HONDA,      seats=8,  speed=209, hp=285,  price=$40,000
-    "NV1500",              # Nissan,     seats=12, speed=160, hp=261,  price=$33,000
-    "Transporter",         # Volkswagen, seats=9,  speed=180, hp=153,  price=$35,000
-    "Carnival SX Prestige",# Kia,        seats=8,  speed=220, hp=290,  price=$47,000
-    "Expedition",          # Ford,       seats=8,  speed=180, hp=388,  price=$62,500
-    "Yukon Denali",        # GMC,        seats=8,  speed=200, hp=420,  price=$72,800
-    "Suburban",            # Chevrolet,  seats=8,  speed=190, hp=355,  price=$59,900
-    "Wagoneer",            # Jeep,       seats=8,  speed=190, hp=392,  price=$63,595
+    "PILOT",
+    "NV1500",
+    "Transporter",
+    "Carnival EX",
+    "Expedition",       
+    "Yukon",
+    "Suburban",
+    "Wagoneer",
 ]
 
 ahp_alts = [name for name in AHP_ALT_NAMES if name in ALTERNATIVES]
@@ -774,15 +913,14 @@ print(f"  {'SUM':15s}  {sum(global_weights.values()):.4f}")
 
 # %%
 # --- Total Speed ---
-# Ranking: Carnival(220)>Pilot(209)>Yukon(200)>Sub(190)=Wag(190)>Trans(180)=Exp(180)>NV(160)
 speed_upper = [
-    5,   3,   1/2, 3,   2,   2,   2,     # row 0 (Pilot)
-         1/3, 1/7, 1/3, 1/5, 1/4, 1/4,   # row 1 (NV1500)
-              1/4, 1,   1/2, 1/2, 1/2,    # row 2 (Transporter)
-                   4,   3,   3,   3,      # row 3 (Carnival)
-                        1/2, 1/2, 1/2,    # row 4 (Expedition)
-                             2,   2,      # row 5 (Yukon)
-                                  1,      # row 6 (Suburban)
+    5,   3,   1/2, 3,   2,   2,   2,     # 0 (Pilot)
+         1/3, 1/7, 1/3, 1/5, 1/4, 1/4,   # 1 (NV1500)
+              1/4, 1,   1/2, 1/2, 1/2,    # 2 (Transporter)
+                   4,   3,   3,   3,      # 3 (Carnival)
+                        1/2, 1/2, 1/2,    # 4 (Expedition)
+                             2,   2,      # 5 (Yukon)
+                                  1,      # 6 (Suburban)
 ]
 M_speed = make_reciprocal(N_AHP, speed_upper)
 w_speed, *_ = print_ahp_result("Alternatives – Total Speed", M_speed, ahp_alts)
@@ -1029,19 +1167,21 @@ plt.tight_layout()
 plt.show()
 
 # %% [markdown]
-# ## Discussion
+# Kendall’s τ ≈ **0.07** (p ≈ **0.90**) indicates **very weak, non-significant agreement** between the two rankings. Both methods agree on the worst alternative (**Transporter**) but disagree on the best (**UTA: Suburban, AHP: Yukon**).
 #
-# The Kendall's τ coefficient measures the ordinal correlation between the two
-# rankings. A value close to 1 indicates strong agreement, close to 0 indicates
-# no correlation, and negative values indicate disagreement.
+# **Biggest rank discrepancies:**
 #
-# Key differences between the methods:
-# - **UTA** derives weights and marginal value functions from pairwise preference
-#   constraints using linear programming — it is data-driven and preference-based.
-# - **AHP** uses subjective pairwise comparisons on the Saaty 1–9 scale and
-#   the eigenvector method — it reflects the decision maker's holistic judgment.
-# - The HorsePower comparison matrix was intentionally made inconsistent
-#   (CR > 0.1), and the inconsistency analysis revealed where the DM's
-#   judgments were most contradictory.
-# - Differences in the final rankings are mainly driven by the different
-#   weighting mechanisms and the subjective nature of AHP comparisons.
+# * **Carnival EX** (AHP #2, UTA #7): AHP’s inconsistent HP matrix rated
+#   Carnival 4× better than Expedition despite lower actual HP (290 vs 388),
+#   inflating its score. UTA binned Carnival one level below the top HP cluster.
+#
+# * **Suburban** (AHP #7, UTA #1): UTA gives Suburban and Wagoneer identical
+#   binned evaluations (tied at utility 0.70). AHP’s pairwise comparisons
+#   rated Suburban at 1/3 of Wagoneer in HP, breaking the tie.
+#
+# **Main driver:** Both methods placed highest weight on HorsePower (0.50),
+# but they differ in how alternatives are scored. UTA’s binning creates a sharp
+# cutoff at HP ≥334.2, while AHP’s per-criterion pairwise matrices introduce
+# subjective distortions. UTA’s discretisation also erases fine differences
+# that AHP preserves (e.g. Suburban vs Wagoneer, Yukon vs Expedition).
+#
